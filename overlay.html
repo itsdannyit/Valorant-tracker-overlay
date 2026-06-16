@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@900&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background: transparent !important;
+            color: #ffffff;
+            padding: 15px;
+            overflow: hidden;
+        }
+        .overlay-container {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .widget-row {
+            font-size: 34px;
+            font-weight: 900;
+            letter-spacing: -0.5px;
+            text-shadow: 2px 2px 3px rgba(0, 0, 0, 0.95), -1px -1px 0px rgba(0, 0, 0, 0.9);
+            line-height: 1.15;
+        }
+        .stat-green { color: #00FF66; }
+        .stat-red { color: #FF3333; }
+    </style>
+</head>
+<body>
+
+    <div class="overlay-container">
+        <div class="widget-row">Party Code: <span id="viewParty">---</span></div>
+        <div class="widget-row">Rank : <span id="viewRank">Loading...</span></div>
+        <div class="widget-row" id="viewWL">0 W - 0 L</div>
+        <div class="widget-row" id="viewRR">+0 rr</div>
+    </div>
+
+    <script>
+        let ws;
+        
+        function connectOverlay() {
+            // Points securely to your running desktop server box
+            ws = new WebSocket('ws://localhost:3000');
+            
+            ws.onmessage = (event) => {
+                const packet = JSON.parse(event.data);
+                if (packet.event === 'STATE_UPDATE') {
+                    const state = packet.data;
+                    
+                    document.getElementById('viewParty').innerText = state.partyCode;
+                    document.getElementById('viewRank').innerText = state.rank;
+                    
+                    const wlRow = document.getElementById('viewWL');
+                    const rrRow = document.getElementById('viewRR');
+                    
+                    wlRow.innerText = `${state.wins} W - ${state.losses} L`;
+                    rrRow.innerText = `${state.rrChange >= 0 ? '+' : ''}${state.rrChange} rr`;
+                    
+                    wlRow.className = `widget-row ${state.colorMode}`;
+                    rrRow.className = `widget-row ${state.colorMode}`;
+                }
+            };
+
+            ws.onclose = () => setTimeout(connectOverlay, 2000);
+        }
+        
+        connectOverlay();
+    </script>
+</body>
+</html>
