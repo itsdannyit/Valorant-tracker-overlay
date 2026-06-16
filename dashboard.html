@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Valorant System Controller</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #0f172a; color: #f8fafc; padding: 30px; display: flex; justify-content: center; }
+        .dashboard { width: 100%; max-width: 500px; background: #1e293b; padding: 25px; border-radius: 12px; border: 1px solid #334155; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5); }
+        h1 { font-size: 22px; color: #38bdf8; border-bottom: 2px solid #334155; padding-bottom: 12px; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .control-group { margin-bottom: 18px; display: flex; flex-direction: column; gap: 6px; }
+        label { font-size: 12px; font-weight: 700; color: #94a3b8; text-transform: uppercase; }
+        input { background: #0f172a; border: 1px solid #475569; padding: 12px; border-radius: 6px; color: white; font-size: 15px; outline: none; }
+        input:focus { border-color: #38bdf8; }
+        .flex-row { display: flex; gap: 10px; }
+        .btn { background: #38bdf8; color: #0f172a; font-weight: bold; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; text-transform: uppercase; transition: filter 0.2s; flex: 1; }
+        .btn:hover { filter: brightness(1.1); }
+        .btn-reset { background: #ef4444; color: white; margin-top: 10px; }
+        .metrics-card { background: #0f172a; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #38bdf8; }
+        .metrics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 14px; margin-top: 5px; color: #cbd5e1; }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard">
+        <h1>Overlay Command Center</h1>
+        
+        <div class="metrics-card">
+            <label>Live Local Server Monitor</label>
+            <div class="metrics-grid">
+                <div>Rank: <strong id="lblRank">---</strong></div>
+                <div>Recent delta: <strong id="lblRR">---</strong></div>
+                <div>Session W-L: <strong id="lblWL">---</strong></div>
+                <div>Active Code: <strong id="lblCode">---</strong></div>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <label>Modify Lobby Code</label>
+            <div class="flex-row">
+                <input type="text" id="txtParty" placeholder="e.g. WRV933" style="flex: 1;">
+                <button class="btn" onclick="pushPartyCode()">Update</button>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <label>Manual Match Overrides</label>
+            <div class="flex-row">
+                <button class="btn" onclick="adjustWL(1, 0)">+1 Win</button>
+                <button class="btn" onclick="adjustWL(0, 1)">+1 Loss</button>
+            </div>
+        </div>
+
+        <button class="btn btn-reset" style="width: 100%;" onclick="triggerReset()">Reset Tracking Session</button>
+    </div>
+
+    <script>
+        let ws;
+        let localState = {};
+
+        function connectWS() {
+            ws = new WebSocket('ws://localhost:3000');
+            
+            ws.onmessage = (event) => {
+                const packet = JSON.parse(event.data);
+                if (packet.event === 'STATE_UPDATE') {
+                    localState = packet.data;
+                    document.getElementById('lblRank').innerText = localState.rank;
+                    document.getElementById('lblRR').innerText = `${localState.rrChange >= 0 ? '+' : ''}${localState.rrChange} rr`;
+                    document.getElementById('lblWL').innerText = `${localState.wins}W - ${localState.losses}L`;
+                    document.getElementById('lblCode').innerText = localState.partyCode;
+                }
+            };
+
+            ws.onclose = () => setTimeout(connectWS, 2000);
+        }
+
+        function pushPartyCode() {
+            const code = document.getElementById('txtParty').value.trim().toUpperCase();
+            if(!code) return;
+            ws.send(JSON.stringify({
+                event: 'ADMIN_ACTION',
+                data: { partyCode: code }
+            }));
+            document.getElementById('txtParty').value = '';
+        }
+
+        function adjustWL(wDelta, lDelta) {
+            ws.send(JSON.stringify({
+                event: 'ADMIN_ACTION',
+                data: { 
+                    wins: Math.max(0, localState.wins + wDelta), 
+                    losses: Math.max(0, localState.losses + lDelta) 
+                }
+            }));
+        }
+
+        function triggerReset() {
+            if(confirm("Flush tracker session back to zero?")) {
+                ws.send(JSON.stringify({ event: 'RESET_SESSION' }));
+            }
+        }
+
+        connectWS();
+    </script>
+</body>
+</html>
