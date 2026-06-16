@@ -46,5 +46,4 @@ Because this architecture runs via an encrypted cloud layout managed directly on
 1. Open **TikTok Live Studio**.
 2. Inside the scene editing suite on the left side menu panel, click **Add Source** and select **Link** (Browser Source).
 3. Paste this exact public destination URL straight into the address field:
-```text
-   [https://itsdannyit.github.io/Valorant-tracker-overlay/overlay.html](https://itsdannyit.github.io/Valorant-tracker-overlay/overlay.html)
+https://itsdannyit.github.io/Valorant-tracker-overlay/overlay.html
