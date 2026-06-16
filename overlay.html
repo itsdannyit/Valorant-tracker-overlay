@@ -42,7 +42,7 @@
         
         function connectOverlay() {
             // Points securely to your running desktop server box
-            ws = new WebSocket('ws://localhost:3000');
+            ws = new WebSocket('ws://localhost:3044');
             
             ws.onmessage = (event) => {
                 const packet = JSON.parse(event.data);
