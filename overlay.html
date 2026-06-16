@@ -2,71 +2,156 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@900&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Valorant Stream Overlay Ticker</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        /* Transparent viewport layout reset */
         body {
-            font-family: 'Montserrat', sans-serif;
+            margin: 0;
+            padding: 0;
             background: transparent !important;
-            color: #ffffff;
-            padding: 15px;
             overflow: hidden;
+            font-family: 'Segoe UI', -apple-system, Roboto, sans-serif;
+            color: #ffffff;
+            -webkit-font-smoothing: antialiased;
         }
-        .overlay-container {
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
+
+        /* Minimalist stream ticker container alignment */
+        .ticker-wrapper {
+            display: inline-block;
+            background: rgba(11, 15, 25, 0.75); /* Dark frosted background accent */
+            padding: 10px 20px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(8px);
+            font-weight: 700;
+            font-size: 16px;
+            letter-spacing: 0.5px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            white-space: nowrap;
         }
-        .widget-row {
-            font-size: 34px;
-            font-weight: 900;
-            letter-spacing: -0.5px;
-            text-shadow: 2px 2px 3px rgba(0, 0, 0, 0.95), -1px -1px 0px rgba(0, 0, 0, 0.9);
-            line-height: 1.15;
+
+        /* Elements inline horizontal composition alignment */
+        .ticker-item {
+            display: inline-block;
+            vertical-align: middle;
         }
-        .stat-green { color: #00FF66; }
-        .stat-red { color: #FF3333; }
+
+        .divider {
+            display: inline-block;
+            width: 1px;
+            height: 16px;
+            background: rgba(255, 255, 255, 0.2);
+            margin: 0 14px;
+            vertical-align: middle;
+        }
+
+        /* Dynamic telemetry metric highlights */
+        .rank-highlight {
+            color: #38bdf8; /* Sleek sky blue */
+            text-transform: uppercase;
+        }
+
+        /* Dynamic status classes toggled via live telemetry loops */
+        .stat-neutral { color: #cbd5e1; }
+        .stat-green { color: #00ff66 !important; text-shadow: 0 0 8px rgba(0, 255, 102, 0.3); }
+        .stat-red { color: #ff3333 !important; text-shadow: 0 0 8px rgba(255, 51, 51, 0.3); }
+
+        .party-code {
+            font-family: monospace;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #f1f5f9;
+        }
     </style>
 </head>
 <body>
 
-    <div class="overlay-container">
-        <div class="widget-row">Party Code: <span id="viewParty">---</span></div>
-        <div class="widget-row">Rank : <span id="viewRank">Loading...</span></div>
-        <div class="widget-row" id="viewWL">0 W - 0 L</div>
-        <div class="widget-row" id="viewRR">+0 rr</div>
+    <div class="ticker-wrapper" id="overlayContainer">
+        <div class="ticker-item">
+            RANK: <span id="txtRank" class="rank-highlight">FETCHING...</span>
+        </div>
+        
+        <div class="divider"></div>
+        
+        <div class="ticker-item">
+            DELTA: <span id="txtDelta" class="stat-neutral">--</span>
+        </div>
+        
+        <div class="divider"></div>
+        
+        <div class="ticker-item">
+            SESSION: <span id="txtWL" class="stat-neutral">0W - 0L</span>
+        </div>
+
+        <div id="partyBlock" style="display: none;">
+            <div class="divider"></div>
+            <div class="ticker-item">
+                CODE: <span id="txtParty" class="party-code">--</span>
+            </div>
+        </div>
     </div>
 
     <script>
         let ws;
-        
-        function connectOverlay() {
-            // Points securely to your running desktop server box
+        const txtRank = document.getElementById('txtRank');
+        const txtDelta = document.getElementById('txtDelta');
+        const txtWL = document.getElementById('txtWL');
+        const txtParty = document.getElementById('txtParty');
+        const partyBlock = document.getElementById('partyBlock');
+
+        function connectTelemetryHub() {
+            // TARGET UPGRADED PORT 3044 CHANNELS
             ws = new WebSocket('ws://localhost:3044');
-            
+
             ws.onmessage = (event) => {
-                const packet = JSON.parse(event.data);
-                if (packet.event === 'STATE_UPDATE') {
-                    const state = packet.data;
-                    
-                    document.getElementById('viewParty').innerText = state.partyCode;
-                    document.getElementById('viewRank').innerText = state.rank;
-                    
-                    const wlRow = document.getElementById('viewWL');
-                    const rrRow = document.getElementById('viewRR');
-                    
-                    wlRow.innerText = `${state.wins} W - ${state.losses} L`;
-                    rrRow.innerText = `${state.rrChange >= 0 ? '+' : ''}${state.rrChange} rr`;
-                    
-                    wlRow.className = `widget-row ${state.colorMode}`;
-                    rrRow.className = `widget-row ${state.colorMode}`;
+                try {
+                    const packet = JSON.parse(event.data);
+                    if (packet.event === 'STATE_UPDATE') {
+                        const state = packet.data;
+
+                        // 1. Map Rank Output
+                        txtRank.innerText = state.rank || "UNRANKED";
+
+                        // 2. Map RR Change Delta with dynamic polarity adjustments
+                        if (state.rrChange === 0) {
+                            txtDelta.innerText = "0 RR";
+                            txtDelta.className = "stat-neutral";
+                        } else {
+                            const prefix = state.rrChange > 0 ? "+" : "";
+                            txtDelta.innerText = `${prefix}${state.rrChange} RR`;
+                            txtDelta.className = state.colorMode; // Flashes green/red automatically
+                        }
+
+                        // 3. Map Match Session Ledger Records
+                        txtWL.innerText = `${state.wins}W - ${state.losses}L`;
+
+                        // 4. Handle Lobby Custom Code Visibility Rules
+                        if (state.partyCode && state.partyCode.trim() !== "") {
+                            txtParty.innerText = state.partyCode;
+                            partyBlock.style.display = "inline-block";
+                        } else {
+                            partyBlock.style.display = "none";
+                        }
+                    }
+                } catch (e) {
+                    console.error("Failed to compile stream frame matrix package alignment.");
                 }
             };
 
-            ws.onclose = () => setTimeout(connectOverlay, 2000);
+            ws.onclose = () => {
+                txtRank.innerText = "CONN LOSS";
+                txtRank.className = "stat-red";
+                // Auto-retry connectivity routine loops every 3 seconds if disconnected
+                setTimeout(connectTelemetryHub, 3000);
+            };
+
+            ws.onerror = () => ws.close();
         }
-        
-        connectOverlay();
+
+        // Initialize background data synchronization
+        connectTelemetryHub();
     </script>
 </body>
 </html>
