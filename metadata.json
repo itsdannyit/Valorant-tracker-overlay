@@ -1,0 +1,6 @@
+{
+  "name": "Valorant Stream Tracker",
+  "description": "Professional eSports dashboard and stream overlay for Valorant, optimized for TikTok Studio and OBS.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
